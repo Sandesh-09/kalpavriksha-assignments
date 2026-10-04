@@ -1,36 +1,30 @@
 #include <stdio.h>
-int main()
+#include <ctype.h>
+#include <limits.h>
+
+#define MAX_EXPRESSION_LENGTH 1000
+#define MAX_TOKENS 1000
+
+int parseExpression(const char exp[], int num[], char oper[], int *n, int *o)
 {
-    char exp[1000];
-
     int i = 0;
-    char oper[1000];
-    int num[1000];
-
-    int n = 0, o = 0;
     int number = 0;
-    int hasNumber = 0;
-
-    printf("Enter expression: ");
-    scanf("%[^\n]", exp);
+    int previousTokenWasNumber = 0;
 
     while (exp[i] != '\0')
     {
-
-        // ignore spaces
-        if (exp[i] == ' ')
+        // Ignore whitespace characters.
+        if (isspace((unsigned char)exp[i]))
         {
             i++;
             continue;
         }
 
-        // reading number
+        // Parse a number.
         if (exp[i] >= '0' && exp[i] <= '9')
         {
-            // handeling edge case ( like 1 2)
-            if (hasNumber == 1)
+            if (previousTokenWasNumber)
             {
-                printf("Error: Invalid expression.\n");
                 return 0;
             }
 
@@ -38,83 +32,117 @@ int main()
 
             while (exp[i] >= '0' && exp[i] <= '9')
             {
-                number = number * 10 + (exp[i] - '0');
+                int digit = exp[i] - '0';
+
+                if (number > (INT_MAX - digit) / 10)
+                {
+                    return 0;
+                }
+
+                number = number * 10 + digit;
                 i++;
             }
 
-            num[n] = number;
-            n++;
-
-            hasNumber = 1;
-        }
-
-        // reading operator
-        else if (exp[i] == '+' || exp[i] == '-' ||
-                 exp[i] == '*' || exp[i] == '/')
-        {
-
-            if (hasNumber == 0)
+            if (*n >= MAX_TOKENS)
             {
-                printf("Error: Invalid expression.\n");
                 return 0;
             }
 
-            oper[o] = exp[i];
-            o++;
+            num[*n] = number;
+            (*n)++;
 
-            hasNumber = 0;
+            previousTokenWasNumber = 1;
+        }
+
+        // Parse an operator.
+        else if (exp[i] == '+' || exp[i] == '-' ||
+                 exp[i] == '*' || exp[i] == '/')
+        {
+            if (!previousTokenWasNumber)
+            {
+                return 0;
+            }
+
+            if (*o >= MAX_TOKENS)
+            {
+                return 0;
+            }
+
+            oper[*o] = exp[i];
+            (*o)++;
+
+            previousTokenWasNumber = 0;
             i++;
         }
 
-        // invalid character
+        // Reject unsupported characters.
         else
         {
-            printf("Error: Invalid expression.\n");
             return 0;
         }
     }
 
-    // expression ending with operator
-    if (hasNumber == 0 || n == 0)
+    // Expression must end with a number.
+    if (!previousTokenWasNumber || *n == 0)
     {
-        printf("Error: Invalid expression.\n");
         return 0;
     }
 
-    // handle * and /
-    i = 0;
+    return 1;
+}
 
+int applyOperator(int left, int right, char operator, int *result)
+{
+    if (operator == '+')
+    {
+        *result = left + right;
+    }
+    else if (operator == '-')
+    {
+        *result = left - right;
+    }
+    else if (operator == '*')
+    {
+        *result = left * right;
+    }
+    else if (operator == '/')
+    {
+        if (right == 0)
+        {
+            return 0;
+        }
+
+        *result = left / right;
+    }
+
+    return 1;
+}
+
+int evaluateExpression(int num[], char oper[], int n, int o, int *result)
+{
+    int i = 0;
+
+    // Evaluate multiplication and division first.
     while (i < o)
     {
-
         if (oper[i] == '*' || oper[i] == '/')
         {
+            int value;
 
-            if (oper[i] == '/' && num[i + 1] == 0)
+            if (!applyOperator(num[i], num[i + 1], oper[i], &value))
             {
-                printf("Error: Division by zero.\n");
                 return 0;
             }
 
-            if (oper[i] == '*')
-            {
-                num[i] = num[i] * num[i + 1];
-            }
-            else
-            {
-                num[i] = num[i] / num[i + 1];
-            }
+            num[i] = value;
 
-            // shift numbers left
-            int j;
-
-            for (j = i + 1; j < n - 1; j++)
+            // Shift remaining numbers and operators left.
+            for (int j = i + 1; j < n - 1; j++)
             {
                 num[j] = num[j + 1];
             }
 
-            // shift operators left
-            for (j = i; j < o - 1; j++)
+            for (int j = i; j < o - 1; j++)
             {
                 oper[j] = oper[j + 1];
             }
@@ -128,20 +156,52 @@ int main()
         }
     }
 
-    // handle + and -
-    int result = num[0];
+    // Evaluate addition and subtraction.
+    *result = num[0];
 
     for (i = 0; i < o; i++)
     {
+        int value;
 
-        if (oper[i] == '+')
+        if (!applyOperator(*result, num[i + 1], oper[i], &value))
         {
-            result = result + num[i + 1];
+            return 0;
         }
-        else
-        {
-            result = result - num[i + 1];
-        }
+
+        *result = value;
+    }
+
+    return 1;
+}
+
+int main()
+{
+    char exp[MAX_EXPRESSION_LENGTH];
+    int num[MAX_TOKENS];
+    char oper[MAX_TOKENS];
+
+    int n = 0;
+    int o = 0;
+    int result;
+
+    printf("Enter expression: ");
+
+    if (fgets(exp, sizeof(exp), stdin) == NULL)
+    {
+        printf("Error: Invalid expression.\n");
+        return 0;
+    }
+
+    if (!parseExpression(exp, num, oper, &n, &o))
+    {
+        printf("Error: Invalid expression.\n");
+        return 0;
+    }
+
+    if (!evaluateExpression(num, oper, n, o, &result))
+    {
+        printf("Error: Division by zero.\n");
+        return 0;
     }
 
     printf("%d\n", result);
