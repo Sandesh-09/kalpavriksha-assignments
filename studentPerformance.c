@@ -51,7 +51,6 @@ void printStars(char grade)
     {
         printf("*");
     }
-
     printf("\n");
 }
 
@@ -84,12 +83,7 @@ int main()
 
     for (int i = 0; i < n; i++)
     {
-        scanf("%d %s %d %d %d",
-              &students[i].roll_No,
-              students[i].name,
-              &students[i].marks1,
-              &students[i].marks2,
-              &students[i].marks3);
+        scanf("%d %s %d %d %d", &students[i].roll_No, students[i].name, &students[i].marks1, &students[i].marks2, &students[i].marks3);
     }
 
     printf("\n");
