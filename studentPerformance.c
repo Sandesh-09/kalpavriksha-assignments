@@ -1,23 +1,30 @@
 #include <stdio.h>
+
 #define MAX_STUDENTS 100
+#define SUBJECTS 3
 
 struct Student
 {
-    int roll_No;
+    int rollNumber;
     char name[50];
-    int marks1;
-    int marks2;
-    int marks3;
+    int marks[SUBJECTS];
 };
 
-int calculateTotal(struct Student s)
+int calculateTotal(const struct Student *s)
 {
-    return s.marks1 + s.marks2 + s.marks3;
+    int total = 0;
+
+    for (int i = 0; i < SUBJECTS; i++)
+    {
+        total += s->marks[i];
+    }
+
+    return total;
 }
 
 float calculateAverage(int total)
 {
-    return total / 3.0;
+    return total / (float)SUBJECTS;
 }
 
 char calculateGrade(float average)
@@ -34,73 +41,81 @@ char calculateGrade(float average)
         return 'F';
 }
 
+int getStarCount(char grade)
+{
+    switch (grade)
+    {
+    case 'A':
+        return 5;
+    case 'B':
+        return 4;
+    case 'C':
+        return 3;
+    case 'D':
+        return 2;
+    default:
+        return 0;
+    }
+}
+
 void printStars(char grade)
 {
-    int stars = 0;
-
-    if (grade == 'A')
-        stars = 5;
-    else if (grade == 'B')
-        stars = 4;
-    else if (grade == 'C')
-        stars = 3;
-    else if (grade == 'D')
-        stars = 2;
+    int stars = getStarCount(grade);
 
     for (int i = 0; i < stars; i++)
     {
         printf("*");
     }
+
     printf("\n");
 }
 
-void printRollNumbers(struct Student students[], int idx, int n)
+int inputStudent(struct Student *s)
 {
-    if (idx >= n)
-        return;
+    if (scanf("%d %49s %d %d %d",
+              &s->rollNumber,
+              s->name,
+              &s->marks[0],
+              &s->marks[1],
+              &s->marks[2]) != 5)
+    {
+        printf("Invalid student input.\n");
+        return 0;
+    }
 
-    printf("%d", students[idx].roll_No);
+    if (s->rollNumber <= 0)
+    {
+        printf("Roll number must be positive.\n");
+        return 0;
+    }
 
-    if (idx < n - 1)
-        printf(" ");
+    for (int i = 0; i < SUBJECTS; i++)
+    {
+        if (s->marks[i] < 0 || s->marks[i] > 100)
+        {
+            printf("Invalid marks. Each subject must be between 0 and 100.\n");
+            return 0;
+        }
+    }
 
-    printRollNumbers(students, idx + 1, n);
+    return 1;
 }
 
-int main()
+void displayStudentReport(struct Student students[], int n)
 {
-    int n;
-    printf("Enter number of students: ");
-    scanf("%d", &n);
-
-    if (n < 1 || n > MAX_STUDENTS)
-    {
-        printf("Invalid number of students.\n");
-        return 1;
-    }
-
-    struct Student students[MAX_STUDENTS];
-
     for (int i = 0; i < n; i++)
     {
-        scanf("%d %s %d %d %d", &students[i].roll_No, students[i].name, &students[i].marks1, &students[i].marks2, &students[i].marks3);
-    }
-
-    printf("\n");
-
-    for (int i = 0; i < n; i++)
-    {
-        int total = calculateTotal(students[i]);
+        int total = calculateTotal(&students[i]);
         float average = calculateAverage(total);
         char grade = calculateGrade(average);
 
-        printf("Roll: %d\n", students[i].roll_No);
+        printf("Roll: %d\n", students[i].rollNumber);
         printf("Name: %s\n", students[i].name);
         printf("Total: %d\n", total);
         printf("Average: %.2f\n", average);
         printf("Grade: %c\n", grade);
 
-        if (average < 35)
+        if (grade == 'F')
         {
             printf("\n");
             continue;
@@ -110,6 +125,52 @@ int main()
         printStars(grade);
         printf("\n");
     }
+}
+
+void printRollNumbers(struct Student students[], int idx, int n)
+{
+    if (idx >= n)
+        return;
+
+    printf("%d", students[idx].rollNumber);
+
+    if (idx < n - 1)
+        printf(" ");
+
+    printRollNumbers(students, idx + 1, n);
+}
+
+int main(void)
+{
+    int n;
+
+    printf("Enter number of students: ");
+
+    if (scanf("%d", &n) != 1)
+    {
+        printf("Invalid input for number of students.\n");
+        return 1;
+    }
+
+    if (n < 1 || n > MAX_STUDENTS)
+    {
+        printf("Invalid number of students. Enter a value between 1 and %d.\n",
+               MAX_STUDENTS);
+        return 1;
+    }
+
+    struct Student students[MAX_STUDENTS];
+
+    for (int i = 0; i < n; i++)
+    {
+        if (!inputStudent(&students[i]))
+        {
+            return 1;
+        }
+    }
+
+    printf("\n");
+    displayStudentReport(students, n);
 
     printf("List of roll numbers: ");
     printRollNumbers(students, 0, n);
