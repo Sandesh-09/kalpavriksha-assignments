@@ -32,7 +32,6 @@ int readInt(const char *message, int *val)
         printf("Invalid integer input.\n");
         return 0;
     }
-
     return 1;
 }
 
