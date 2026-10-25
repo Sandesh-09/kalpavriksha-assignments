@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <limits.h>
+#include <ctype.h>
 
-const int STANDARD_PRICE = 150;
-const int PREMIUM_PRICE = 250;
-const int RECLINER_PRICE = 400;
+#define STANDARD_PRICE 150
+#define PREMIUM_PRICE 250
+#define RECLINER_PRICE 400
 
 struct Customer
 {
@@ -13,16 +16,92 @@ struct Customer
     int ticket_category;
 };
 
+int readLine(const char *message, char *input, size_t size)
+{
+    printf("%s", message);
+
+    if (fgets(input, size, stdin) == NULL)
+    {
+        printf("Error: Unable to read input.\n");
+        return 0;
+    }
+
+    size_t len = strlen(input);
+
+    if (len > 0 && input[len - 1] == '\n')
+    {
+        input[len - 1] = '\0';
+        return 1;
+    }
+
+    int ch = getchar();
+
+    if (ch == '\n' || ch == EOF)
+    {
+        return 1;
+    }
+
+    while (ch != '\n' && ch != EOF)
+    {
+        ch = getchar();
+    }
+
+    printf("Error: Input is too long.\n");
+    return 0;
+}
+
+int readInt(const char *message, int min, int max, int *value)
+{
+    char input[100];
+    char *endptr;
+    long number;
+
+    if (!readLine(message, input, sizeof(input)))
+        return 0;
+
+    errno = 0;
+    number = strtol(input, &endptr, 10);
+
+    if (input == endptr || errno == ERANGE)
+    {
+        printf("Error: Please enter a valid integer.\n");
+        return 0;
+    }
+
+    while (isspace((unsigned char)*endptr))
+    {
+        endptr++;
+    }
+
+    if (*endptr != '\0' || number < INT_MIN || number > INT_MAX)
+    {
+        printf("Error: Please enter a valid integer.\n");
+        return 0;
+    }
+
+    if (number < min || number > max)
+    {
+        printf("Error: Value must be between %d and %d.\n", min, max);
+        return 0;
+    }
+
+    *value = (int)number;
+    return 1;
+}
+
 int getTicketPrice(struct Customer *c)
 {
     switch (c->ticket_category)
     {
     case 1:
         return STANDARD_PRICE;
+
     case 2:
         return PREMIUM_PRICE;
+
     case 3:
         return RECLINER_PRICE;
+
     default:
         return 0;
     }
@@ -30,44 +109,44 @@ int getTicketPrice(struct Customer *c)
 
 int getCustomerDetails(struct Customer *c)
 {
-    printf("Enter customer name: ");
-    if (scanf("%49s", c->name) != 1)
-        return 0;
-
-    printf("Enter number of tickets: ");
-    if (scanf("%d", &c->number_of_tickets) != 1 ||
-        c->number_of_tickets < 1 ||
-        c->number_of_tickets > 20)
+    if (!readLine("Enter customer name: ", c->name, sizeof(c->name)))
     {
-        printf("Error: Tickets must be between 1 and 20.\n");
         return 0;
     }
 
-    printf("Enter ticket category (1-Standard, 2-Premium, 3-Recliner): ");
-    if (scanf("%d", &c->ticket_category) != 1 || c->ticket_category < 1 || c->ticket_category > 3)
+    if (c->name[0] == '\0')
     {
-        printf("Invalid category: Category must be 1, 2, or 3.\n");
+        printf("Error: Customer name cannot be empty.\n");
+        return 0;
+    }
+
+    if (!readInt("Enter number of tickets: ", 1, 20, &c->number_of_tickets))
+    {
+        return 0;
+    }
+
+    if (!readInt("Enter ticket category (1-Standard, 2-Premium, 3-Recliner): ", 1, 3, &c->ticket_category))
+    {
         return 0;
     }
 
     return 1;
 }
 
-float calculateSubtotal(int price, int tickets)
+double calculateSubtotal(int price, int tickets)
 {
-    return (float)price * tickets;
+    return (double)price * tickets;
 }
 
-float calculateDiscount(float subtotal, int tickets)
+double calculateDiscount(double subtotal, int tickets)
 {
     if (tickets >= 5)
-        return subtotal * 0.10f;
+        return subtotal * 0.10;
 
-    return 0.0f;
+    return 0.0;
 }
 
-void displayBill(struct Customer *c,
-                 float subtotal, float discount)
+int displayBill(struct Customer *c, double subtotal, double discount)
 {
     const char *category;
 
@@ -76,44 +155,68 @@ void displayBill(struct Customer *c,
     case 1:
         category = "Standard";
         break;
+
     case 2:
         category = "Premium";
         break;
-    default:
+
+    case 3:
         category = "Recliner";
+        break;
+
+    default:
+        printf("Error: Invalid ticket category. Cannot display bill.\n");
+        return 0;
     }
 
-    printf("\nCustomer: %s\n", c->name);
+    printf("\nMovie Ticket Booking Bill\n\n");
+    printf("Customer: %s\n", c->name);
     printf("Ticket Category: %s\n", category);
     printf("Tickets: %d\n", c->number_of_tickets);
     printf("Subtotal: %.2f\n", subtotal);
     printf("Discount: %.2f\n", discount);
     printf("Final Bill: %.2f\n", subtotal - discount);
+
+    return 1;
 }
 
-void processBooking(struct Customer *c)
+int processBooking(struct Customer *c)
 {
     int price = getTicketPrice(c);
 
-    float subtotal = calculateSubtotal(price, c->number_of_tickets);
-    float discount = calculateDiscount(subtotal, c->number_of_tickets);
+    if (price == 0)
+    {
+        printf("Error: Unable to calculate price for invalid category.\n");
+        return 0;
+    }
 
-    displayBill(c, subtotal, discount);
+    double subtotal = calculateSubtotal(price, c->number_of_tickets);
+
+    double discount = calculateDiscount(subtotal, c->number_of_tickets);
+
+    return displayBill(c, subtotal, discount);
 }
 
-int main(void)
+int main()
 {
     struct Customer *c = malloc(sizeof(struct Customer));
 
     if (c == NULL)
     {
-        printf("Memory allocation failed.\n");
+        printf("Error: Memory allocation failed.\n");
         return 1;
     }
 
-    if (getCustomerDetails(c))
+    if (!getCustomerDetails(c))
     {
-        processBooking(c);
+        free(c);
+        return 1;
+    }
+
+    if (!processBooking(c))
+    {
+        free(c);
+        return 1;
     }
 
     free(c);
