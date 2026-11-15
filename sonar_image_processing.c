@@ -27,16 +27,14 @@ int readInteger(const char *message)
 
         if (strchr(input, '\n') == NULL)
         {
-            int ch;
-            int too_long = 0;
-
-            while ((ch = getchar()) != '\n' && ch != EOF)
+            if (strlen(input) == sizeof(input) - 1)
             {
-                too_long = 1;
-            }
+                int ch;
 
-            if (too_long)
-            {
+                while ((ch = getchar()) != '\n' && ch != EOF)
+                {
+                }
+
                 printf("Input is too long.\n");
                 continue;
             }
@@ -64,9 +62,9 @@ int readInteger(const char *message)
     }
 }
 
-int **createMatrix(int n)
+int ***createMatrix(int n)
 {
-    int **matrix = malloc(n * sizeof(*matrix));
+    int ***matrix = malloc(n * sizeof(*matrix));
 
     if (matrix == NULL)
         return NULL;
@@ -85,89 +83,122 @@ int **createMatrix(int n)
             free(matrix);
             return NULL;
         }
+
+        for (int j = 0; j < n; j++)
+        {
+            *(*(matrix + i) + j) = malloc(sizeof(***matrix));
+
+            if (*(*(matrix + i) + j) == NULL)
+            {
+                for (int k = 0; k < j; k++)
+                {
+                    free(*(*(matrix + i) + k));
+                }
+
+                free(*(matrix + i));
+
+                for (int k = 0; k < i; k++)
+                {
+                    for (int l = 0; l < n; l++)
+                    {
+                        free(*(*(matrix + k) + l));
+                    }
+
+                    free(*(matrix + k));
+                }
+
+                free(matrix);
+                return NULL;
+            }
+        }
     }
 
     return matrix;
 }
 
-void freeMatrix(int **matrix, int n)
+void freeMatrix(int ***matrix, int n)
 {
     if (matrix == NULL)
         return;
 
     for (int i = 0; i < n; i++)
     {
+        for (int j = 0; j < n; j++)
+        {
+            free(*(*(matrix + i) + j));
+        }
+
         free(*(matrix + i));
     }
 
     free(matrix);
 }
 
-void generateMatrix(int **matrix, int n)
+void generateMatrix(int ***matrix, int n)
 {
     for (int i = 0; i < n; i++)
     {
         for (int j = 0; j < n; j++)
         {
-            *(*(matrix + i) + j) = rand() % 256;
+            **(*(matrix + i) + j) = rand() % 256;
         }
     }
 }
 
-void displayMatrix(int **matrix, int n)
+void displayMatrix(int ***matrix, int n)
 {
     for (int i = 0; i < n; i++)
     {
         for (int j = 0; j < n; j++)
         {
-            printf("%d ", *(*(matrix + i) + j));
+            printf("%d ", **(*(matrix + i) + j));
         }
 
         printf("\n");
     }
 }
 
-void swapValues(int *a, int *b)
+void swapPointers(int **a, int **b)
 {
-    int temp = *a;
+    int *temp = *a;
     *a = *b;
     *b = temp;
 }
 
-void transposeMatrix(int **matrix, int n)
+void transposeMatrix(int ***matrix, int n)
 {
     for (int i = 0; i < n; i++)
     {
         for (int j = i + 1; j < n; j++)
         {
-            swapValues(*(matrix + i) + j, *(matrix + j) + i);
+            swapPointers(*(matrix + i) + j, *(matrix + j) + i);
         }
     }
 }
 
-void reverseRows(int **matrix, int n)
+void reverseRows(int ***matrix, int n)
 {
     for (int i = 0; i < n; i++)
     {
-        int *left = *(matrix + i);
-        int *right = left + n - 1;
+        int **left = *(matrix + i);
+        int **right = left + n - 1;
 
         while (left < right)
         {
-            swapValues(left, right);
+            swapPointers(left, right);
             left++;
             right--;
         }
     }
 }
 
-void rotateMatrix(int **matrix, int n)
+void rotateMatrix(int ***matrix, int n)
 {
     transposeMatrix(matrix, n);
     reverseRows(matrix, n);
 }
 
-int applyFilter(int **matrix, int n)
+int applyFilter(int ***matrix, int n)
 {
     int *prevRow = malloc(n * sizeof(*prevRow));
     int *currRow = malloc(n * sizeof(*currRow));
@@ -183,7 +214,7 @@ int applyFilter(int **matrix, int n)
     {
         for (int j = 0; j < n; j++)
         {
-            *(currRow + j) = *(*(matrix + i) + j);
+            *(currRow + j) = **(*(matrix + i) + j);
         }
 
         for (int j = 0; j < n; j++)
@@ -203,13 +234,13 @@ int applyFilter(int **matrix, int n)
                     else if (r == i)
                         sum += *(currRow + c);
                     else
-                        sum += *(*(matrix + r) + c);
+                        sum += **(*(matrix + r) + c);
 
                     count++;
                 }
             }
 
-            *(*(matrix + i) + j) = sum / count;
+            **(*(matrix + i) + j) = sum / count;
         }
 
         for (int j = 0; j < n; j++)
@@ -242,7 +273,7 @@ int main()
 
     srand((unsigned int)time(NULL));
 
-    int **matrix = createMatrix(n);
+    int ***matrix = createMatrix(n);
 
     if (matrix == NULL)
     {
